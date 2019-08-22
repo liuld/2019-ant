@@ -1,0 +1,26 @@
+[Unit]
+Description=Docker Application Container Engine
+Documentation=http://docs.docker.com
+After=network-online.target
+
+[Service]
+Delegate=yes
+Type=notify
+KillMode=process
+EnvironmentFile=-/etc/sysconfig/docker
+EnvironmentFile=-/etc/sysconfig/docker-storage
+EnvironmentFile=-/etc/sysconfig/docker-network
+EnvironmentFile=-/var/flannel/docker
+ExecStartPre=/usr/local/bin/mk-docker-opts.sh -k DOCKER_NETWORK_OPTIONS -d /var/flannel/docker
+ExecStart=/usr/local/bin/dockerd --live-restore --insecure-registry 192.168.10.20:5000 --tlsverify --tlscacert=/data/k8s-data/docker/certs/ca.pem --tlscert=/data/k8s-data/docker/certs/server-cert.pem --tlskey=/data/k8s-data/docker/certs/server-key.pem -H unix:///var/run/docker.sock -H 0.0.0.0:2376 $DOCKER_NETWORK_OPTIONS
+#MountFlags=share
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=1048576
+LimitNPROC=1048576
+LimitCORE=infinity
+#timeoutStartSec=0
+ExecReload=/bin/kill -s HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target
