@@ -1,1 +1,9 @@
-https://download.docker.com/linux/static/stable/x86_64/
+docker-bin:https://download.docker.com/linux/static/stable/x86_64/
+deply:
+wget https://download.docker.com/linux/static/stable/x86_64/docker-19.03.1.tgz
+tar -zxvf docker-19.03.1.tgz && mv docker/* /usr/local/bin/
+mv mk-docker-opts.sh mk-docker-certs.sh /usr/local/bin/
+\cp -r docker.service /etc/systemd/system/ && systemctl daemon-reload
+/usr/local/bin/mk-docker-certs.sh all
+systemctl enable docker && systemctl start docker && systemctl status docker
+
