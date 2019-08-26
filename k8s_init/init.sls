@@ -8,21 +8,21 @@ pre:
 
 /tmp/pre.sh:
   file.managed:
-    - source: salt://deploy/k8s/pre/pre.sh
+    - source: salt://k8s_init/pre.sh
     - user: root
     - group: root
     - mode: 655
 
 /etc/systemd/journald.conf:
   file.managed:
-    - source: salt://deploy/k8s/pre/journald.conf
+    - source: salt://k8s_init/journald.conf
     - user: root
     - group: root
     - mode: 644
 
 /etc/sysctl.d/kubernetes.conf:
   file.managed:
-    - source: salt://deploy/k8s/pre/kubernetes.conf
+    - source: salt://k8s_init/kubernetes.conf
     - user: root
     - group: root
     - mode: 644
