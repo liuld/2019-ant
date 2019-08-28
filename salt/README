@@ -1,0 +1,7 @@
+# salt
+
+### https://github.com/CentOS/sig-cloud-instance-images/blob/7c2e214edced0b2f22e663ab4175a80fc93acaa9/docker/Dockerfile
+
+### docker run --privileged -d -v /sys/fs/cgroup:/sys/fs/cgroup:ro -v /srv/salt:/srv/salt -v /srv/pillar:/srv/pillar -v roster:/etc/salt/roster 192.168.10.20:5000/salt
+
+
