@@ -1,0 +1,110 @@
+1.ops机部署docker: 参考https://github.com/liuld/2019-ant/blob/master/docker_deploy/VERSION
+    (使用之前下载的bin文件。解压docker/kubelet等执行文件: tar zxvf kube-bin.tgz -C /usr/local/bin/)
+    ./containerd
+    ./containerd-shim
+    ./ctr
+    ./docker
+    ./dockerd
+    ./docker-init
+    ./docker-proxy
+    ./kubeadm
+    ./kubectl
+    ./kubelet
+    ./kube-proxy
+    ./mk-docker-certs.sh
+    ./mk-docker-opts.sh
+    ./runc
+
+2.导入镜像/拉起镜像中心/push镜像到镜像中心
+    docker load -i kubernetes-v1.14.5.tar
+    docker run -d --restart=always --net=host --name registry -v /data/registry:/var/lib/registry registry.cqt.com:5000/registry:2.7.1
+    for i in $(docker images | grep registry | awk '{printf "%s:%s ",$1,$2}');do docker push $i;done
+3.拉起salt  #https://github.com/liuld/DockerFiles
+    tar zxvf tools.tgz
+                {
+                admin.kubeconfig
+                cfssl
+                cfssl-certinfo
+                cfssljson
+                csr-crb.yaml
+                flanneld-ds.yaml
+                nginx-ds.yml
+                deploy.sh
+                k8s_init.sh
+                }
+    mv cfssl* /usr/local/bin/ && ./k8s_init.sh
+    mv k8s_init /data/salt/
+    mv k8s_deploy.sh /data/k8s-data/
+    docker run --name salt -v /data/roster:/etc/salt/roster -v /data/k8s-data:/srv/salt/files -v /data/pillar:/srv/pillar -v /data/salt:/srv/salt --net=host --privileged -d registry.cqt.com:5000/salt:test2
+    docker exec -it salt systemctl start salt-master
+    #nohup python3 -m http.server 8080 &
+    #配置salt容器免秘钥登录三台master
+    salt-ssh --priv=/root/.ssh/id_rsa '*' state.sls k8s_init
+4.部署master
+    salt-ssh --priv=/root/.ssh/id_rsa '*' state.sls deploy_master
+
+5.查看集群状态
+    mkdir /root/.kube/
+    cat > admin-csr.json <<EOF
+{
+  "CN": "admin",
+  "hosts": [],
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "CN",
+      "ST": "BeiJing",
+      "L": "BeiJing",
+      "O": "system:masters",
+      "OU": "4Paradigm"
+    }
+  ]
+}
+EOF
+
+    cfssl gencert -ca=/data/k8s-data/certs/ca/ca.pem -ca-key=/data/ca-key.pem -config=/data/ca-config.json -profile=kubernetes admin-csr.json | cfssljson -bare admin
+    cat > /root/.kube/config <<EOF
+    apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority: /data/k8s-data/certs/ca/ca.pem
+    server: https://192.168.10.110:8443
+  name: kubernetes
+contexts:
+- context:
+    cluster: kubernetes
+    user: admin
+  name: kubernetes
+current-context: kubernetes
+kind: Config
+preferences: {}
+users:
+- name: admin
+  user:
+    client-certificate: /root/admin.pem
+    client-key: /root/admin-key.pem
+EOF
+
+    kubectl get cs
+    授权
+    kubectl create clusterrolebinding kubelet-bootstrap --clusterrole=system:node-bootstrapper --group=system:bootstrappers
+    kubectl create clusterrolebinding kube-apiserver:kubelet-apis --clusterrole=system:kubelet-api-admin --user kubernetes
+    kubeadm token create --description kubelet-bootstrap-token --groups system:bootstrappers:node
+    for i in 192.168.10.110 192.168.10.120 192.168.10.130;do ssh $i -o KbdInteractiveAuthentication=no -o PasswordAuthentication=no -o GSSAPIAuthentication=no -o ConnectTimeout=65 -o Port=22 -o IdentityFile=/root/id_rsa -o User=root "sed -i 's/\(.*token:\)/\1 g73lcx.94zn4emuplqwkrtt/' /data/k8s-data/config/kubelet-bootstrap.kubeconfig";done
+    kubectl certificate approve $(kubectl get csr | grep Pending | awk '{print $1}')
+    kubectl apply -f csr-crb.yaml
+
+
+
+
+/etc/docker/daemon.json
+{
+  "registry-mirrors": [
+    "https://registry.docker-cn.com",
+    "http://hub-mirror.c.163.com",
+    "https://docker.mirrors.ustc.edu.cn"
+  ]
+}
